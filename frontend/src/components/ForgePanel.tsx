@@ -947,7 +947,7 @@ export function ForgePanel({ materialId }: { materialId: number }) {
       {stats.total_questions > 0 && (
         <div className="border-t border-border-subtle pt-3 mt-1">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            {/* 左栏：答题配置 */}
+            {/* 左栏：答题配置 + 开始答题 + 复习入口 */}
             <div className="space-y-3">
               <div className="text-text-secondary text-xs font-medium">答题配置</div>
 
@@ -1008,9 +1008,42 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   ))}
                 </div>
               </div>
+
+              <button onClick={startQuiz} disabled={stats.total_questions === 0}
+                className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-30 ${
+                  stats.total_questions > 0
+                    ? "bg-brand text-black shadow-[0_0_16px_rgba(0,229,153,0.15)] hover:shadow-[0_0_24px_rgba(0,229,153,0.25)] hover:opacity-95"
+                    : "bg-brand/30 text-black/40"
+                }`}>
+                开始答题
+              </button>
+
+              {/* 复习入口 */}
+              {stats.wrong_questions > 0 ? (
+                <button onClick={() => setPhase("wrongReview")}
+                  className="w-full py-2 rounded-lg text-sm border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors text-left px-3">
+                  错题重做 · {stats.wrong_questions}题
+                </button>
+              ) : stats.mastered_questions > 0 ? (
+                <div className="text-orange-400 text-xs px-3 py-1.5 rounded-lg border border-orange-500/10 bg-orange-500/5">
+                  全部错题已攻克
+                  <button onClick={() => setPhase("masteredList")} className="ml-1 underline hover:text-orange-300 transition-colors">查看</button>
+                </div>
+              ) : null}
+              {stats.due_reviews > 0 ? (
+                <button onClick={() => setPhase("sm2Review")}
+                  className="w-full py-2 rounded-lg text-sm border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors text-left px-3">
+                  记忆巩固 · {stats.due_reviews}题
+                </button>
+              ) : stats.stable_cards > 0 ? (
+                <div className="text-blue-400 text-xs px-3 py-1.5 rounded-lg border border-blue-500/10 bg-blue-500/5">
+                  暂无待巩固卡片
+                  <button onClick={() => setPhase("stableCardList")} className="ml-1 underline hover:text-blue-300 transition-colors">查看</button>
+                </div>
+              ) : null}
             </div>
 
-            {/* 右栏：出题配置 */}
+            {/* 右栏：出题配置 + 生成控制 */}
             <div className="space-y-3">
               <div className="text-text-secondary text-xs font-medium">出题配置</div>
 
@@ -1062,112 +1095,63 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   ))}
                 </div>
               </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-muted">自动续批（上限15题）</span>
+                <button onClick={() => setAutoContinue(v => !v)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${autoContinue ? "bg-brand" : "bg-surface-raised border border-border-soft"}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoContinue ? "translate-x-4" : ""}`} />
+                </button>
+              </div>
+
+              {genError && (
+                <div className="text-red-400 text-xs bg-red-400/5 px-3 py-2 rounded-lg space-y-1">
+                  <p>{genError}</p>
+                  <button onClick={() => triggerGeneration(false)} disabled={genPending}
+                    className="text-red-400 underline hover:text-red-300 transition-colors">重试</button>
+                </div>
+              )}
+
+              {stats.total_chunks > 0 && stats.total_chunks < 3 && (
+                <div className="text-yellow-400 text-[10px] bg-yellow-400/5 px-2 py-1.5 rounded-lg">
+                  仅 {stats.total_chunks} 段，题目可能重复
+                </div>
+              )}
+
+              {genPending ? (
+                <button onClick={handleStopGeneration}
+                  className="w-full py-2 rounded-lg text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
+                  停止出题
+                </button>
+              ) : (
+                <button onClick={supplementQuestions}
+                  disabled={stats.covered_chunks >= stats.total_chunks}
+                  className="w-full py-2 rounded-lg text-sm border border-green-500/40 text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-30">
+                  {(() => {
+                    if (stats.covered_chunks >= stats.total_chunks) return "已无新题可出";
+                    const rate = stats.covered_chunks > 0 ? stats.total_questions / stats.covered_chunks : 3;
+                    const remaining = Math.round(rate * (stats.total_chunks - stats.covered_chunks));
+                    if (remaining <= 5) return `补充题目（最多 ${Math.min(remaining, 5)} 题）`;
+                    return `补充题目（~${remaining} 题可出）`;
+                  })()}
+                </button>
+              )}
             </div>
           </div>
-
-          <button onClick={startQuiz}
-            disabled={stats.total_questions === 0}
-            className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all mt-3 disabled:opacity-30 ${
-              stats.total_questions > 0
-                ? "bg-brand text-black shadow-[0_0_16px_rgba(0,229,153,0.15)] hover:shadow-[0_0_24px_rgba(0,229,153,0.25)] hover:opacity-95"
-                : genPending
-                ? "bg-brand/50 text-black/60"
-                : "bg-brand/30 text-black/40"
-            }`}>
-            {stats.total_questions > 0 ? "开始答题" : genPending ? `正在出题... (${genElapsed}s)` : "暂无题目"}
-          </button>
         </div>
       )}
 
-      {/* 题数警告：仅在知识点极少时提示 */}
-      {stats.total_chunks > 0 && stats.total_chunks < 3 && (
-        <div className="text-yellow-400 text-xs bg-yellow-400/5 px-3 py-2 rounded-lg">
-          材料仅 {stats.total_chunks} 段内容，题目可能重复。建议补充更多内容后锻造。
-        </div>
-      )}
-
-      {/* 出题失败提示 */}
-      {genError && (
-        <div className="text-red-400 text-xs bg-red-400/5 px-3 py-2 rounded-lg space-y-2">
-          <p>{genError}</p>
-          <button onClick={() => triggerGeneration(false)}
-            disabled={genPending}
-            className="text-red-400 underline hover:text-red-300 transition-colors">
-            点击重试
-          </button>
-        </div>
-      )}
-
-      {/* 自动续批开关 */}
-      {stats.total_questions > 0 && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-text-muted">自动续批（上限 15 题）</span>
-          <button onClick={() => setAutoContinue(v => !v)}
-            className={`relative w-9 h-5 rounded-full transition-colors ${autoContinue ? "bg-brand" : "bg-surface-raised border border-border-soft"}`}>
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoContinue ? "translate-x-4" : ""}`} />
-          </button>
-        </div>
-      )}
-
-      {/* 补充题目 / 停止出题 */}
-      {stats.total_questions > 0 && (
-        genPending ? (
-          <button onClick={handleStopGeneration}
-            className="w-full py-2 rounded-lg text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
-            停止出题
-          </button>
-        ) : (
-          <button onClick={supplementQuestions}
-            disabled={stats.covered_chunks >= stats.total_chunks}
-            className="w-full py-2 rounded-lg text-sm border border-green-500/40 text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-30">
-            {(() => {
-              if (stats.covered_chunks >= stats.total_chunks) return "已无新题可出";
-              const rate = stats.covered_chunks > 0 ? stats.total_questions / stats.covered_chunks : 3;
-              const remaining = Math.round(rate * (stats.total_chunks - stats.covered_chunks));
-              if (remaining <= 5) return `补充题目（最后一轮，最多 ${Math.min(remaining, 5)} 题）`;
-              return `补充题目（预计还可出 ${remaining} 题）`;
-            })()}
-          </button>
-        )
-      )}
-
-      {/* v4.0: 错题重做 + 间隔复习独立入口 */}
-      {stats.total_questions > 0 && (
-        <div className="space-y-1.5">
-          {stats.wrong_questions > 0 ? (
-            <button onClick={() => setPhase("wrongReview")}
-              className="w-full py-2 rounded-lg text-sm border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors text-left px-3">
-              🔴 错题重做 · {stats.wrong_questions}题待攻克
-            </button>
-          ) : stats.mastered_questions > 0 ? (
-            <div className="w-full py-2 rounded-lg text-sm border border-orange-500/10 bg-orange-500/5 text-left px-3">
-              <span className="text-orange-400">🎉 全部错题已攻克！</span>
-              <button onClick={() => setPhase("masteredList")} className="ml-2 text-orange-400/70 underline hover:text-orange-400 transition-colors">
-                查看已攻克列表
-              </button>
-            </div>
-          ) : null}
-          {stats.due_reviews > 0 ? (
-            <button onClick={() => setPhase("sm2Review")}
-              className="w-full py-2 rounded-lg text-sm border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors text-left px-3">
-              🔵 记忆巩固 · {stats.due_reviews}题待巩固
-            </button>
-          ) : stats.stable_cards > 0 ? (
-            <div className="w-full py-2 rounded-lg text-sm border border-blue-500/10 bg-blue-500/5 text-left px-3">
-              <span className="text-blue-400">📚 暂无待巩固卡片</span>
-              <button onClick={() => setPhase("stableCardList")} className="ml-2 text-blue-400/70 underline hover:text-blue-400 transition-colors">
-                查看已掌握
-              </button>
-            </div>
-          ) : null}
+      {/* 已攻克 / 已掌握（跨栏） */}
+      {(stats.mastered_questions > 0 || stats.stable_cards > 0) && stats.total_questions > 0 && (
+        <div className="space-y-1">
           {stats.mastered_questions > 0 && (
-            <details className="mt-2" onToggle={async (e) => {
+            <details className="mt-1" onToggle={async (e) => {
               if ((e.target as HTMLDetailsElement).open && allQuestions.length === 0) {
                 const qs = await listQuestions(materialId).catch(() => []);
                 setAllQuestions(qs);
               }
             }}>
-              <summary className="text-sm text-text-muted cursor-pointer hover:text-text-secondary">
+              <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary">
                 已攻克 · {stats.mastered_questions}题
               </summary>
               <div className="mt-2">
@@ -1176,13 +1160,13 @@ export function ForgePanel({ materialId }: { materialId: number }) {
             </details>
           )}
           {stats.stable_cards > 0 && (
-            <details className="mt-2" onToggle={async (e) => {
+            <details className="mt-1" onToggle={async (e) => {
               if ((e.target as HTMLDetailsElement).open && allQuestions.length === 0) {
                 const qs = await listQuestions(materialId).catch(() => []);
                 setAllQuestions(qs);
               }
             }}>
-              <summary className="text-sm text-text-muted cursor-pointer hover:text-text-secondary">
+              <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary">
                 已掌握 · {stats.stable_cards}张
               </summary>
               <div className="mt-2">

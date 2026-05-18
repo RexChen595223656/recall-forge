@@ -866,7 +866,7 @@ export function ForgePanel({ materialId }: { materialId: number }) {
   const dueCount = stats.due_reviews;
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6">
       {/* 统计区 */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -943,44 +943,43 @@ export function ForgePanel({ materialId }: { materialId: number }) {
         </div>
       )}
 
-      {/* 答题 & 出题配置：左右两栏平铺 */}
+      {/* 配置区：左右双栏 */}
       {stats.total_questions > 0 && (
-        <>
-          {/* 知识标签 — 全宽 */}
-          {Object.keys(stats.tag_distribution).length > 0 && (
-            <div>
-              <div className="text-text-secondary text-xs mb-1">知识标签（多选）</div>
-              <div className="flex flex-wrap gap-1">
-                {Object.entries(stats.tag_distribution).slice(0, 8).map(([tag, count]) => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      setQuizConfig(qc => {
-                        const prev = qc.filterTags;
-                        return { ...qc, filterTags: prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag] };
-                      });
-                    }}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${quizConfig.filterTags.includes(tag) ? "bg-brand text-black" : "bg-brand-soft text-brand hover:bg-brand-hover"}`}
-                  >
-                    {tag}:{count}
-                  </button>
-                ))}
-                {quizConfig.filterTags.length > 0 && (
-                  <button onClick={() => setQuizConfig(qc => ({ ...qc, filterTags: [] }))} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-panel text-text-muted hover:text-text-secondary transition-colors">
-                    ✕ 清除
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 左右两栏：答题配置 | 出题配置 */}
-          <div className="grid grid-cols-2 gap-4 border-y border-border-subtle py-3">
+        <div className="border-t border-border-subtle pt-3 mt-1">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             {/* 左栏：答题配置 */}
-            <div className="space-y-2">
-              <div className="text-text-secondary text-xs font-medium">答题</div>
+            <div className="space-y-3">
+              <div className="text-text-secondary text-xs font-medium">答题配置</div>
+
+              {Object.keys(stats.tag_distribution).length > 0 && (
+                <div>
+                  <div className="text-text-muted text-[10px] mb-1">知识标签</div>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(stats.tag_distribution).slice(0, 8).map(([tag, count]) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setQuizConfig(qc => {
+                            const prev = qc.filterTags;
+                            return { ...qc, filterTags: prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag] };
+                          });
+                        }}
+                        className={`text-xs px-2 py-0.5 rounded-full transition-colors ${quizConfig.filterTags.includes(tag) ? "bg-brand text-black" : "bg-brand-soft text-brand hover:bg-brand-hover"}`}
+                      >
+                        {tag}:{count}
+                      </button>
+                    ))}
+                    {quizConfig.filterTags.length > 0 && (
+                      <button onClick={() => setQuizConfig(qc => ({ ...qc, filterTags: [] }))} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-panel text-text-muted hover:text-text-secondary transition-colors">
+                        清除
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
-                <div className="text-text-dim text-[10px] mb-0.5">数量</div>
+                <div className="text-text-muted text-[10px] mb-1">数量</div>
                 <input
                   type="number"
                   min={1}
@@ -998,12 +997,13 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   className="w-full bg-surface-panel border border-border-subtle rounded-md px-3 py-1.5 text-xs text-text-primary focus:border-brand focus:outline-none"
                 />
               </div>
+
               <div>
-                <div className="text-text-dim text-[10px] mb-0.5">批改方式</div>
+                <div className="text-text-muted text-[10px] mb-1">批改方式</div>
                 <div className="grid grid-cols-2 gap-1">
                   {(["instant", "batch"] as const).map(v => (
                     <button key={v} onClick={() => setQuizConfig(c => ({ ...c, feedbackMode: v }))} className={`${btnBase} ${quizConfig.feedbackMode === v ? btnSel : btnDef}`}>
-                      {{ instant: "逐题", batch: "统批" }[v]}
+                      {{ instant: "逐题", batch: "统一" }[v]}
                     </button>
                   ))}
                 </div>
@@ -1011,10 +1011,11 @@ export function ForgePanel({ materialId }: { materialId: number }) {
             </div>
 
             {/* 右栏：出题配置 */}
-            <div className="space-y-2">
-              <div className="text-text-secondary text-xs font-medium">出题</div>
+            <div className="space-y-3">
+              <div className="text-text-secondary text-xs font-medium">出题配置</div>
+
               <div>
-                <div className="text-text-dim text-[10px] mb-0.5">提取方式</div>
+                <div className="text-text-muted text-[10px] mb-1">提取方式</div>
                 <div className="grid grid-cols-2 gap-1">
                   {(["extract", "expand"] as const).map(v => (
                     <button key={v} onClick={() => setGenConfig(c => ({ ...c, mode: v }))} className={`${btnBase} ${genConfig.mode === v ? btnSel : btnDef}`}>
@@ -1023,8 +1024,9 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   ))}
                 </div>
               </div>
+
               <div>
-                <div className="text-text-dim text-[10px] mb-0.5">难度</div>
+                <div className="text-text-muted text-[10px] mb-1">难度</div>
                 <div className="grid grid-cols-3 gap-1">
                   {(["easy", "medium", "hard"] as const).map(v => (
                     <button key={v} onClick={() => setGenConfig(c => ({ ...c, difficulty: v }))} className={`${btnBase} ${genConfig.difficulty === v ? btnSel : btnDef}`}>
@@ -1033,8 +1035,21 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   ))}
                 </div>
               </div>
+
+              {Object.keys(stats.tag_distribution).length > 0 && (
+                <div>
+                  <div className="text-text-muted text-[10px] mb-1">定向知识点</div>
+                  <div className="flex flex-wrap gap-1">
+                    <button onClick={() => setGenConfig(c => ({ ...c, tag: undefined }))} className={`${btnBase} px-2 ${!genConfig.tag ? btnSel : btnDef}`}>不限</button>
+                    {Object.keys(stats.tag_distribution).slice(0, 6).map(t => (
+                      <button key={t} onClick={() => setGenConfig(c => ({ ...c, tag: t }))} className={`${btnBase} px-2 ${genConfig.tag === t ? btnSel : btnDef}`}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
-                <div className="text-text-dim text-[10px] mb-0.5">题型</div>
+                <div className="text-text-muted text-[10px] mb-1">题型</div>
                 <div className="grid grid-cols-3 gap-1">
                   {([
                     { v: "single", l: "单选" },
@@ -1047,23 +1062,12 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                   ))}
                 </div>
               </div>
-              {Object.keys(stats.tag_distribution).length > 0 && (
-                <div>
-                  <div className="text-text-dim text-[10px] mb-0.5">定向知识点</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button onClick={() => setGenConfig(c => ({ ...c, tag: undefined }))} className={`${btnBase} px-2 ${!genConfig.tag ? btnSel : btnDef}`}>不限</button>
-                    {Object.keys(stats.tag_distribution).slice(0, 5).map(t => (
-                      <button key={t} onClick={() => setGenConfig(c => ({ ...c, tag: t }))} className={`${btnBase} px-2 ${genConfig.tag === t ? btnSel : btnDef}`}>{t}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
           <button onClick={startQuiz}
             disabled={stats.total_questions === 0}
-            className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-30 ${
+            className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all mt-3 disabled:opacity-30 ${
               stats.total_questions > 0
                 ? "bg-brand text-black shadow-[0_0_16px_rgba(0,229,153,0.15)] hover:shadow-[0_0_24px_rgba(0,229,153,0.25)] hover:opacity-95"
                 : genPending
@@ -1072,7 +1076,7 @@ export function ForgePanel({ materialId }: { materialId: number }) {
             }`}>
             {stats.total_questions > 0 ? "开始答题" : genPending ? `正在出题... (${genElapsed}s)` : "暂无题目"}
           </button>
-        </>
+        </div>
       )}
 
       {/* 题数警告：仅在知识点极少时提示 */}

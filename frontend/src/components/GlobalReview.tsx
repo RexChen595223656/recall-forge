@@ -112,7 +112,7 @@ export function GlobalReview({ onClose, mode = "sm2" }: { onClose: () => void; m
   if (isWrongMode) {
     const qi = item as QuestionItem;
     return (
-      <div className="space-y-4 max-w-xl">
+      <div className="space-y-4">
         <div className="flex justify-between text-xs text-text-muted">
           <button onClick={onClose} className="text-text-muted hover:text-text-secondary transition-colors">← 返回</button>
           <span>{idx + 1} / {items.length}</span>
@@ -154,7 +154,7 @@ export function GlobalReview({ onClose, mode = "sm2" }: { onClose: () => void; m
   // SM-2 mode (existing behavior)
   const ri = item as ReviewItem;
   return (
-    <div className="space-y-4 max-w-xl">
+    <div className="space-y-4">
       <div className="flex justify-between text-xs text-text-muted">
         <button onClick={onClose} className="text-text-muted hover:text-text-secondary transition-colors">← 返回</button>
         <span>复习 {idx + 1} / {items.length}</span>

@@ -7,9 +7,12 @@ from services.rag import chunk_text, embed_and_store, delete_material_chunks, co
 from services.parser import parse_url, parse_pdf, parse_markdown
 from services.quiz_gen import generate_quiz_async
 from services.crypto import decrypt
+from services.rate_limit import rate_limit
 from config import MAX_FILE_SIZE_MB, ANTHROPIC_AUTH_TOKEN
 from models.database import Setting
 import asyncio
+
+_generate_limiter = rate_limit(max_requests=5, window_seconds=60, key_prefix="gen")
 
 router = APIRouter()
 
@@ -175,6 +178,8 @@ async def generate_questions(
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
         raise HTTPException(status_code=404, detail="材料不存在")
+
+    _generate_limiter(material_id)
 
     total_chunks = count_chunks(material_id)
     max_questions = min(total_chunks * 3, 5)

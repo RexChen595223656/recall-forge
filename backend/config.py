@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 
+# Disable ChromaDB telemetry before any ChromaDB imports
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "https://api.deepseek.com/anthropic")

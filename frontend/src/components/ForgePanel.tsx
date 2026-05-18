@@ -12,6 +12,23 @@ import { MasteredList } from "./MasteredList";
 import { StableCardList } from "./StableCardList";
 import { QuestionEditor } from "./QuestionEditor";
 
+// ---- 工具函数 ----
+
+async function pollWithBackoff(
+  check: () => Promise<"continue" | "stop" | "retry">,
+  { baseMs = 2000, maxMs = 10000, maxAttempts = 60 } = {}
+) {
+  let delay = baseMs;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, delay));
+    const result = await check();
+    if (result === "stop") return;
+    if (result === "continue") { delay = baseMs; continue; }
+    // "retry": back off
+    delay = Math.min(maxMs, delay * 1.5);
+  }
+}
+
 // ---- 子组件 ----
 
 function GeneratingAnimation() {
@@ -187,45 +204,41 @@ export function ForgePanel({ materialId }: { materialId: number }) {
         questionType: genConfig.questionType,
         tag: genConfig.tag,
       });
-      let polls = 0;
-      const poll = setInterval(async () => {
-        polls++;
+      pollWithBackoff(async () => {
         const status = await getGenerateStatus(materialId).catch(() => null);
-        if (!status) return;
-        if (status.status === "idle" || polls > 60) {
-          clearInterval(poll);
-          if (status.question_count === 0) setGenError("出题失败，请重试");
-          setGenPending(false);
-          generatingRef.current = false;
-          getMaterialStats(materialId).then(setStats);
-          return;
-        }
-        if (status.status === "error") {
-          clearInterval(poll);
-          setGenError(status.message || "出题失败，请重试");
-          setGenPending(false);
-          generatingRef.current = false;
-          getMaterialStats(materialId).then(setStats);
-          return;
-        }
+        if (!status) return "retry";
         if (status.status === "ready") {
-          clearInterval(poll);
           setGenError("");
           const freshStats = await getMaterialStats(materialId).catch(() => null);
           if (freshStats) setStats(freshStats);
-          // v4.2: 自动续批 — 持续出题直到覆盖完或达 15 题
           if (!userStoppedRef.current && autoContinueRef.current &&
               freshStats && freshStats.covered_chunks < freshStats.total_chunks &&
               freshStats.total_questions < 15) {
-            generatingRef.current = false; // release before recursive call
+            generatingRef.current = false;
             triggerGeneration(true, true);
-            return;
+            return "stop";
           }
           setGenPending(false);
           generatingRef.current = false;
           window.dispatchEvent(new Event("forge-activity"));
+          return "stop";
         }
-      }, 2000);
+        if (status.status === "error") {
+          setGenError(status.message || "出题失败，请重试");
+          setGenPending(false);
+          generatingRef.current = false;
+          getMaterialStats(materialId).then(setStats);
+          return "stop";
+        }
+        if (status.status === "idle") {
+          if (status.question_count === 0) setGenError("出题失败，请重试");
+          setGenPending(false);
+          generatingRef.current = false;
+          getMaterialStats(materialId).then(setStats);
+          return "stop";
+        }
+        return "continue";
+      });
     } catch {
       setGenPending(false);
       generatingRef.current = false;
@@ -288,14 +301,12 @@ export function ForgePanel({ materialId }: { materialId: number }) {
           getGenerateStatus(materialId).then(st => {
             if (st.status === "generating") {
               setGenPending(true);
-              const poll = setInterval(async () => {
+              pollWithBackoff(async () => {
                 const status = await getGenerateStatus(materialId).catch(() => null);
-                if (!status) return;
+                if (!status) return "retry";
                 if (status.status === "ready") {
-                  clearInterval(poll);
                   const freshStats = await getMaterialStats(materialId).catch(() => null);
                   if (freshStats) setStats(freshStats);
-                  // v4.2: check auto-continue
                   if (autoContinueRef.current && freshStats &&
                       freshStats.covered_chunks < freshStats.total_chunks &&
                       freshStats.total_questions < 15 &&
@@ -306,9 +317,15 @@ export function ForgePanel({ materialId }: { materialId: number }) {
                     setGenPending(false);
                   }
                   window.dispatchEvent(new Event("forge-activity"));
+                  return "stop";
                 }
-                else if (status.status === "error" || status.status === "idle") { clearInterval(poll); setGenPending(false); if (status.status === "idle" && !isMaterialStopped(materialId)) triggerGeneration(false); }
-              }, 2000);
+                if (status.status === "error" || status.status === "idle") {
+                  setGenPending(false);
+                  if (status.status === "idle" && !isMaterialStopped(materialId)) triggerGeneration(false);
+                  return "stop";
+                }
+                return "continue";
+              });
               return;
             }
             if (st.status === "idle") {

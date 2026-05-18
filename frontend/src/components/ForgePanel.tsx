@@ -110,6 +110,7 @@ export function ForgePanel({ materialId }: { materialId: number }) {
   const [expandedQIds, setExpandedQIds] = useState<Set<number>>(new Set());
   const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [showGenModal, setShowGenModal] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [genStartTime, setGenStartTime] = useState(0);
   const [genElapsed, setGenElapsed] = useState(0);
@@ -943,200 +944,212 @@ export function ForgePanel({ materialId }: { materialId: number }) {
         </div>
       )}
 
-      {/* 配置区：左右双栏 */}
+      {/* 答题区 */}
       {stats.total_questions > 0 && (
-        <div className="border-t border-border-subtle pt-3 mt-1">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            {/* 左栏：答题配置 + 开始答题 + 复习入口 */}
-            <div className="space-y-3">
-              <div className="text-text-secondary text-xs font-medium">答题配置</div>
-
-              {Object.keys(stats.tag_distribution).length > 0 && (
-                <div>
-                  <div className="text-text-muted text-[10px] mb-1">知识标签</div>
-                  <div className="flex flex-wrap gap-1">
-                    {Object.entries(stats.tag_distribution).slice(0, 8).map(([tag, count]) => (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          setQuizConfig(qc => {
-                            const prev = qc.filterTags;
-                            return { ...qc, filterTags: prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag] };
-                          });
-                        }}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-colors ${quizConfig.filterTags.includes(tag) ? "bg-brand text-black" : "bg-brand-soft text-brand hover:bg-brand-hover"}`}
-                      >
-                        {tag}:{count}
-                      </button>
-                    ))}
-                    {quizConfig.filterTags.length > 0 && (
-                      <button onClick={() => setQuizConfig(qc => ({ ...qc, filterTags: [] }))} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-panel text-text-muted hover:text-text-secondary transition-colors">
-                        清除
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="text-text-muted text-[10px] mb-1">数量</div>
-                <input
-                  type="number"
-                  min={1}
-                  max={Math.max(1, stats.total_questions)}
-                  value={countInput}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCountInput(e.target.value)}
-                  onBlur={() => {
-                    const v = parseInt(countInput) || 1;
-                    const max = Math.max(1, stats.total_questions);
-                    const clamped = Math.max(1, Math.min(max, v));
-                    setCountInput(String(clamped));
-                    setQuizConfig(c => ({ ...c, count: clamped }));
-                  }}
-                  onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                  className="w-full bg-surface-panel border border-border-subtle rounded-md px-3 py-1.5 text-xs text-text-primary focus:border-brand focus:outline-none"
-                />
+        <div className="border-t border-border-subtle pt-3 mt-1 space-y-3">
+          {/* 知识标签 */}
+          {Object.keys(stats.tag_distribution).length > 0 && (
+            <div>
+              <div className="text-text-muted text-[10px] mb-1">知识标签</div>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(stats.tag_distribution).slice(0, 8).map(([tag, count]) => (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      setQuizConfig(qc => {
+                        const prev = qc.filterTags;
+                        return { ...qc, filterTags: prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag] };
+                      });
+                    }}
+                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${quizConfig.filterTags.includes(tag) ? "bg-brand text-black" : "bg-brand-soft text-brand hover:bg-brand-hover"}`}
+                  >
+                    {tag}:{count}
+                  </button>
+                ))}
+                {quizConfig.filterTags.length > 0 && (
+                  <button onClick={() => setQuizConfig(qc => ({ ...qc, filterTags: [] }))} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-panel text-text-muted hover:text-text-secondary transition-colors">
+                    清除
+                  </button>
+                )}
               </div>
+            </div>
+          )}
 
-              <div>
-                <div className="text-text-muted text-[10px] mb-1">批改方式</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {(["instant", "batch"] as const).map(v => (
-                    <button key={v} onClick={() => setQuizConfig(c => ({ ...c, feedbackMode: v }))} className={`${btnBase} ${quizConfig.feedbackMode === v ? btnSel : btnDef}`}>
-                      {{ instant: "逐题", batch: "统一" }[v]}
-                    </button>
-                  ))}
-                </div>
+          {/* 数量 + 批改方式 */}
+          <div className="flex items-end gap-3">
+            <div className="w-16">
+              <div className="text-text-muted text-[10px] mb-1">数量</div>
+              <input
+                type="number"
+                min={1}
+                max={Math.max(1, stats.total_questions)}
+                value={countInput}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCountInput(e.target.value)}
+                onBlur={() => {
+                  const v = parseInt(countInput) || 1;
+                  const max = Math.max(1, stats.total_questions);
+                  const clamped = Math.max(1, Math.min(max, v));
+                  setCountInput(String(clamped));
+                  setQuizConfig(c => ({ ...c, count: clamped }));
+                }}
+                onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                className="w-full bg-surface-panel border border-border-subtle rounded-md px-2 py-1.5 text-xs text-text-primary focus:border-brand focus:outline-none text-center"
+              />
+            </div>
+            <div className="flex-1">
+              <div className="text-text-muted text-[10px] mb-1">批改方式</div>
+              <div className="grid grid-cols-2 gap-1">
+                {(["instant", "batch"] as const).map(v => (
+                  <button key={v} onClick={() => setQuizConfig(c => ({ ...c, feedbackMode: v }))} className={`${btnBase} ${quizConfig.feedbackMode === v ? btnSel : btnDef}`}>
+                    {{ instant: "逐题", batch: "统一" }[v]}
+                  </button>
+                ))}
               </div>
+            </div>
+          </div>
 
-              <button onClick={startQuiz} disabled={stats.total_questions === 0}
-                className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-30 ${
-                  stats.total_questions > 0
-                    ? "bg-brand text-black shadow-[0_0_16px_rgba(0,229,153,0.15)] hover:shadow-[0_0_24px_rgba(0,229,153,0.25)] hover:opacity-95"
-                    : "bg-brand/30 text-black/40"
-                }`}>
-                开始答题
+          {/* 开始答题 */}
+          <div className="flex justify-center">
+            <button onClick={startQuiz} disabled={stats.total_questions === 0}
+              className={`px-8 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-30 ${
+                stats.total_questions > 0
+                  ? "bg-brand text-black shadow-[0_0_16px_rgba(0,229,153,0.15)] hover:shadow-[0_0_24px_rgba(0,229,153,0.25)] hover:opacity-95"
+                  : "bg-brand/30 text-black/40"
+              }`}>
+              开始答题
+            </button>
+          </div>
+
+          {/* 出题设置 + 补充题目 */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowGenModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                genError ? "border-red-500/30 text-red-400 hover:bg-red-500/10" :
+                "border-border-soft text-text-muted hover:text-text-secondary hover:bg-surface-raised"
+              }`}>
+              <span className="text-[10px]">⚙</span>
+              出题设置 · {{ extract: "原文", expand: "拓展" }[genConfig.mode]} · {{ easy: "简", medium: "中", hard: "难" }[genConfig.difficulty]} · {{ single: "单选", multi: "多选", "single,multi": "混合" }[genConfig.questionType]}
+              {genError && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+            </button>
+            <div className="flex-1" />
+            {genPending ? (
+              <button onClick={handleStopGeneration}
+                className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 transition-colors">
+                停止出题
               </button>
+            ) : (
+              <button onClick={supplementQuestions}
+                disabled={stats.covered_chunks >= stats.total_chunks}
+                className="px-3 py-1.5 rounded-lg border border-green-500/40 text-green-400 text-xs hover:bg-green-500/10 transition-colors disabled:opacity-30">
+                {stats.covered_chunks >= stats.total_chunks ? "已无新题可出" : "补充题目"}
+              </button>
+            )}
+          </div>
 
-              {/* 复习入口 */}
-              {stats.wrong_questions > 0 ? (
+          {/* 复习入口 */}
+          {(stats.wrong_questions > 0 || stats.due_reviews > 0) && (
+            <div className="flex gap-2">
+              {stats.wrong_questions > 0 && (
                 <button onClick={() => setPhase("wrongReview")}
-                  className="w-full py-2 rounded-lg text-sm border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors text-left px-3">
-                  错题重做 · {stats.wrong_questions}题
+                  className="flex-1 py-2 rounded-lg text-xs border border-orange-500/30 text-orange-400 hover:bg-orange-500/10 transition-colors">
+                  错题重做 · {stats.wrong_questions}
                 </button>
-              ) : stats.mastered_questions > 0 ? (
-                <div className="text-orange-400 text-xs px-3 py-1.5 rounded-lg border border-orange-500/10 bg-orange-500/5">
-                  全部错题已攻克
-                  <button onClick={() => setPhase("masteredList")} className="ml-1 underline hover:text-orange-300 transition-colors">查看</button>
-                </div>
-              ) : null}
-              {stats.due_reviews > 0 ? (
+              )}
+              {stats.due_reviews > 0 && (
                 <button onClick={() => setPhase("sm2Review")}
-                  className="w-full py-2 rounded-lg text-sm border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors text-left px-3">
-                  记忆巩固 · {stats.due_reviews}题
-                </button>
-              ) : stats.stable_cards > 0 ? (
-                <div className="text-blue-400 text-xs px-3 py-1.5 rounded-lg border border-blue-500/10 bg-blue-500/5">
-                  暂无待巩固卡片
-                  <button onClick={() => setPhase("stableCardList")} className="ml-1 underline hover:text-blue-300 transition-colors">查看</button>
-                </div>
-              ) : null}
-            </div>
-
-            {/* 右栏：出题配置 + 生成控制 */}
-            <div className="space-y-3">
-              <div className="text-text-secondary text-xs font-medium">出题配置</div>
-
-              <div>
-                <div className="text-text-muted text-[10px] mb-1">提取方式</div>
-                <div className="grid grid-cols-2 gap-1">
-                  {(["extract", "expand"] as const).map(v => (
-                    <button key={v} onClick={() => setGenConfig(c => ({ ...c, mode: v }))} className={`${btnBase} ${genConfig.mode === v ? btnSel : btnDef}`}>
-                      {{ extract: "原文", expand: "拓展" }[v]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-text-muted text-[10px] mb-1">难度</div>
-                <div className="grid grid-cols-3 gap-1">
-                  {(["easy", "medium", "hard"] as const).map(v => (
-                    <button key={v} onClick={() => setGenConfig(c => ({ ...c, difficulty: v }))} className={`${btnBase} ${genConfig.difficulty === v ? btnSel : btnDef}`}>
-                      {{ easy: "简", medium: "中", hard: "难" }[v]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {Object.keys(stats.tag_distribution).length > 0 && (
-                <div>
-                  <div className="text-text-muted text-[10px] mb-1">定向知识点</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button onClick={() => setGenConfig(c => ({ ...c, tag: undefined }))} className={`${btnBase} px-2 ${!genConfig.tag ? btnSel : btnDef}`}>不限</button>
-                    {Object.keys(stats.tag_distribution).slice(0, 6).map(t => (
-                      <button key={t} onClick={() => setGenConfig(c => ({ ...c, tag: t }))} className={`${btnBase} px-2 ${genConfig.tag === t ? btnSel : btnDef}`}>{t}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="text-text-muted text-[10px] mb-1">题型</div>
-                <div className="grid grid-cols-3 gap-1">
-                  {([
-                    { v: "single", l: "单选" },
-                    { v: "multi", l: "多选" },
-                    { v: "single,multi", l: "混合" },
-                  ] as const).map(({ v, l }) => (
-                    <button key={v} onClick={() => setGenConfig(c => ({ ...c, questionType: v }))} className={`${btnBase} ${genConfig.questionType === v ? btnSel : btnDef}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-text-muted">自动续批（上限15题）</span>
-                <button onClick={() => setAutoContinue(v => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors ${autoContinue ? "bg-brand" : "bg-surface-raised border border-border-soft"}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoContinue ? "translate-x-4" : ""}`} />
-                </button>
-              </div>
-
-              {genError && (
-                <div className="text-red-400 text-xs bg-red-400/5 px-3 py-2 rounded-lg space-y-1">
-                  <p>{genError}</p>
-                  <button onClick={() => triggerGeneration(false)} disabled={genPending}
-                    className="text-red-400 underline hover:text-red-300 transition-colors">重试</button>
-                </div>
-              )}
-
-              {stats.total_chunks > 0 && stats.total_chunks < 3 && (
-                <div className="text-yellow-400 text-[10px] bg-yellow-400/5 px-2 py-1.5 rounded-lg">
-                  仅 {stats.total_chunks} 段，题目可能重复
-                </div>
-              )}
-
-              {genPending ? (
-                <button onClick={handleStopGeneration}
-                  className="w-full py-2 rounded-lg text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
-                  停止出题
-                </button>
-              ) : (
-                <button onClick={supplementQuestions}
-                  disabled={stats.covered_chunks >= stats.total_chunks}
-                  className="w-full py-2 rounded-lg text-sm border border-green-500/40 text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-30">
-                  {(() => {
-                    if (stats.covered_chunks >= stats.total_chunks) return "已无新题可出";
-                    const rate = stats.covered_chunks > 0 ? stats.total_questions / stats.covered_chunks : 3;
-                    const remaining = Math.round(rate * (stats.total_chunks - stats.covered_chunks));
-                    if (remaining <= 5) return `补充题目（最多 ${Math.min(remaining, 5)} 题）`;
-                    return `补充题目（~${remaining} 题可出）`;
-                  })()}
+                  className="flex-1 py-2 rounded-lg text-xs border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-colors">
+                  记忆巩固 · {stats.due_reviews}
                 </button>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* 出题配置弹窗 */}
+      {showGenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowGenModal(false)}>
+          <div className="bg-background border border-border-default rounded-xl w-full max-w-sm mx-4 p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold">出题设置</h2>
+              <button onClick={() => setShowGenModal(false)} className="text-text-muted hover:text-text-primary text-lg leading-none">&times;</button>
+            </div>
+
+            <div>
+              <div className="text-text-muted text-[10px] mb-1">提取方式</div>
+              <div className="grid grid-cols-2 gap-1">
+                {(["extract", "expand"] as const).map(v => (
+                  <button key={v} onClick={() => setGenConfig(c => ({ ...c, mode: v }))} className={`${btnBase} ${genConfig.mode === v ? btnSel : btnDef}`}>
+                    {{ extract: "原文提取", expand: "拓展延伸" }[v]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-text-muted text-[10px] mb-1">难度</div>
+              <div className="grid grid-cols-3 gap-1">
+                {(["easy", "medium", "hard"] as const).map(v => (
+                  <button key={v} onClick={() => setGenConfig(c => ({ ...c, difficulty: v }))} className={`${btnBase} ${genConfig.difficulty === v ? btnSel : btnDef}`}>
+                    {{ easy: "简单", medium: "中等", hard: "困难" }[v]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {Object.keys(stats.tag_distribution).length > 0 && (
+              <div>
+                <div className="text-text-muted text-[10px] mb-1">定向知识点</div>
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => setGenConfig(c => ({ ...c, tag: undefined }))} className={`${btnBase} px-2 ${!genConfig.tag ? btnSel : btnDef}`}>不限</button>
+                  {Object.keys(stats.tag_distribution).slice(0, 6).map(t => (
+                    <button key={t} onClick={() => setGenConfig(c => ({ ...c, tag: t }))} className={`${btnBase} px-2 ${genConfig.tag === t ? btnSel : btnDef}`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="text-text-muted text-[10px] mb-1">题型</div>
+              <div className="grid grid-cols-3 gap-1">
+                {([
+                  { v: "single", l: "单选" },
+                  { v: "multi", l: "多选" },
+                  { v: "single,multi", l: "混合" },
+                ] as const).map(({ v, l }) => (
+                  <button key={v} onClick={() => setGenConfig(c => ({ ...c, questionType: v }))} className={`${btnBase} ${genConfig.questionType === v ? btnSel : btnDef}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-text-muted">自动续批（上限 15 题）</span>
+              <button onClick={() => setAutoContinue(v => !v)}
+                className={`relative w-9 h-5 rounded-full transition-colors ${autoContinue ? "bg-brand" : "bg-surface-raised border border-border-soft"}`}>
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${autoContinue ? "translate-x-4" : ""}`} />
+              </button>
+            </div>
+
+            {stats.total_chunks > 0 && stats.total_chunks < 3 && (
+              <div className="text-yellow-400 text-xs bg-yellow-400/5 px-3 py-2 rounded-lg">
+                材料仅 {stats.total_chunks} 段，题目可能重复
+              </div>
+            )}
+
+            {genError && (
+              <div className="text-red-400 text-xs bg-red-400/5 px-3 py-2 rounded-lg space-y-1">
+                <p>{genError}</p>
+                <button onClick={() => triggerGeneration(false)} disabled={genPending}
+                  className="text-red-400 underline hover:text-red-300 transition-colors">重试</button>
+              </div>
+            )}
+
+            <button onClick={() => setShowGenModal(false)}
+              className="w-full py-2 bg-brand text-black rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+              完成
+            </button>
           </div>
         </div>
       )}

@@ -5,16 +5,16 @@ from models.database import get_db, Material, Question, Attempt, ReviewCard, Set
 from models.schemas import MaterialResponse
 from services.rag import chunk_text, embed_and_store, delete_material_chunks, count_chunks
 from services.parser import parse_url, parse_pdf, parse_markdown
-from services.quiz_gen import generate_quiz_sync
+from services.quiz_gen import generate_quiz_async
 from services.crypto import decrypt
 from config import MAX_FILE_SIZE_MB, ANTHROPIC_AUTH_TOKEN
 from models.database import Setting
-import threading
+import asyncio
 
 router = APIRouter()
 
-# Track in-progress generation threads (resets on server restart)
-_generation_threads: dict[int, threading.Thread] = {}
+# Track in-progress generation tasks (resets on server restart)
+_generation_tasks: dict[int, asyncio.Task] = {}
 _generation_errors: dict[int, str] = {}
 
 
@@ -163,7 +163,7 @@ def create_question(material_id: int, data: dict, db: Session = Depends(get_db))
 
 
 @router.post("/{material_id}/generate")
-def generate_questions(
+async def generate_questions(
     material_id: int,
     exclude_covered: bool = False,
     mode: str = "extract",
@@ -186,9 +186,8 @@ def generate_questions(
         used = db.query(Question.chunk_id).filter(Question.material_id == material_id, Question.chunk_id != "").all()
         exclude_ids = [r[0] for r in used]
 
-    def run_generation():
+    async def run_generation():
         gen_db = next(get_db())
-        # Get user-set API key, fall back to server env var
         api_key = ""
         try:
             setting = gen_db.query(Setting).filter(Setting.key == "api_key").first()
@@ -199,7 +198,7 @@ def generate_questions(
         if not api_key:
             api_key = ANTHROPIC_AUTH_TOKEN
         try:
-            result = generate_quiz_sync(material_id, max_questions, exclude_ids, mode, difficulty, question_type, tag, api_key=api_key)
+            result = await generate_quiz_async(material_id, max_questions, exclude_ids, mode, difficulty, question_type, tag, api_key=api_key)
             if "error" in result:
                 _generation_errors[material_id] = result["error"]
                 return
@@ -223,9 +222,8 @@ def generate_questions(
         finally:
             gen_db.close()
 
-    thread = threading.Thread(target=run_generation)
-    _generation_threads[material_id] = thread
-    thread.start()
+    task = asyncio.create_task(run_generation())
+    _generation_tasks[material_id] = task
 
     return {"status": "generating", "max_questions": max_questions}
 
@@ -240,8 +238,8 @@ def get_generation_status(material_id: int, db: Session = Depends(get_db)):
     question_count = db.query(Question).filter(Question.material_id == material_id).count()
     max_expected = min(total_chunks * 3, 5)
 
-    thread = _generation_threads.get(material_id)
-    if thread and thread.is_alive():
+    task = _generation_tasks.get(material_id)
+    if task and not task.done():
         return {"status": "generating", "max_questions": max_expected}
 
     error = _generation_errors.pop(material_id, None)

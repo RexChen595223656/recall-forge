@@ -4,6 +4,10 @@ import { getDueReviews, getWrongQuestions, recordReview, submitAnswer, type Revi
 
 type GlobalReviewMode = "wrong" | "sm2";
 
+function normalizeAns(ans: string): string {
+  return ans.split(",").map(a => a.trim().toUpperCase()).filter(Boolean).sort().join(",");
+}
+
 export function GlobalReview({ onClose, mode = "sm2" }: { onClose: () => void; mode?: GlobalReviewMode }) {
   const [items, setItems] = useState<(ReviewItem | QuestionItem)[]>([]);
   const [idx, setIdx] = useState(0);
@@ -70,7 +74,7 @@ export function GlobalReview({ onClose, mode = "sm2" }: { onClose: () => void; m
     const item = items[idx] as QuestionItem;
     const letter = answer.charAt(0).toUpperCase();
     const result = await submitAnswer(item.id, letter).catch(() => null);
-    const isCorrect = result?.is_correct ?? (letter === item.answer.toUpperCase());
+    const isCorrect = result?.is_correct ?? (normalizeAns(letter) === normalizeAns(item.answer));
     challengeRef.current.total++;
     if (isCorrect) {
       challengeRef.current.correct++;
@@ -133,7 +137,7 @@ export function GlobalReview({ onClose, mode = "sm2" }: { onClose: () => void; m
         </div>
         {submitted && (
           <div className="space-y-3">
-            {selectedAnswer && qi.answer && selectedAnswer[0] === qi.answer[0] ? (
+            {selectedAnswer && qi.answer && normalizeAns(selectedAnswer) === normalizeAns(qi.answer) ? (
               <p className="text-green-400 text-sm font-medium">✓ 正确</p>
             ) : (
               <p className="text-red-400 text-sm font-medium">✗ 错误</p>

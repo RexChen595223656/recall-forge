@@ -3,7 +3,6 @@ from typing import AsyncGenerator
 from services.rag import get_random_chunks
 from config import ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL
 import httpx
-import asyncio
 import time
 
 
@@ -171,8 +170,8 @@ async def generate_quiz_stream(
     yield "data: [DONE]\n\n"
 
 
-def generate_quiz_sync(material_id: int, count: int, exclude_ids: list = None, mode: str = "extract", difficulty: str = "medium", question_type: str = "single", tag: str = "", api_key: str = ""):
-    """同步出题，用于后台异步任务。非流式调用，返回题目列表"""
+async def generate_quiz_async(material_id: int, count: int, exclude_ids: list = None, mode: str = "extract", difficulty: str = "medium", question_type: str = "single", tag: str = "", api_key: str = ""):
+    """非流式出题，用于后台任务。异步调用，不阻塞事件循环"""
     chunks = get_random_chunks(material_id, n=min(count * 3, 20), exclude_ids=exclude_ids or [])
     chunk_ids = [c["metadata"].get("chunk_oid", "") for c in chunks]
     chunks_text = "\n\n---\n\n".join([c["content"][:500] for c in chunks])
@@ -198,9 +197,10 @@ def generate_quiz_sync(material_id: int, count: int, exclude_ids: list = None, m
         "thinking": {"type": "disabled"},
     }
 
-    resp = httpx.post(f"{ANTHROPIC_BASE_URL}/messages", headers=headers, json=body, timeout=90)
-    if resp.status_code != 200:
-        return {"questions": [], "chunk_ids": [], "error": f"HTTP {resp.status_code}"}
+    async with httpx.AsyncClient(timeout=90) as client:
+        resp = await client.post(f"{ANTHROPIC_BASE_URL}/messages", headers=headers, json=body)
+        if resp.status_code != 200:
+            return {"questions": [], "chunk_ids": [], "error": f"HTTP {resp.status_code}"}
 
     data = resp.json()
     full_text = data["content"][0]["text"] if data.get("content") else ""

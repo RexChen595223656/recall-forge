@@ -22,7 +22,7 @@ def clean_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     # Clear any stale generation threads from previous tests
-    _materials_router._generation_threads.clear()
+    _materials_router._generation_tasks.clear()
     _materials_router._generation_errors.clear()
     yield
     Base.metadata.drop_all(bind=engine)

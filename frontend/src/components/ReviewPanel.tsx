@@ -164,7 +164,7 @@ export function ReviewPanel({ materialId, onClose, initialMode = "wrong" }: Prop
   const isWrongMode = mode === "wrong";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <button onClick={onClose} className="text-text-muted text-xs hover:text-text-secondary transition-colors">← 返回</button>

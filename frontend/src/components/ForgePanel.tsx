@@ -866,7 +866,7 @@ export function ForgePanel({ materialId }: { materialId: number }) {
   const dueCount = stats.due_reviews;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-xl">
       {/* 统计区 */}
       <div>
         <div className="flex items-center justify-between mb-2">
